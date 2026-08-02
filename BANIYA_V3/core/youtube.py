@@ -11,7 +11,7 @@ from BANIYA_V3 import logger
 from BANIYA_V3.helpers import Track, utils
 
 # Fast Download API
-API_URL = "https://shrutibots.site"
+API_URL = "ShrutiBotsj2rEdiXb50MK8hnK5xvy"
 
 class YouTube:
     def __init__(self):
