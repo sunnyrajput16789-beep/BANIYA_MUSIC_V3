@@ -1,4 +1,4 @@
-from os import getenv
+tufrom os import getenv
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,8 +30,8 @@ class Config:
         self.SESSION3 = getenv("SESSION3", None)
 
         # 📢 Support Links
-        self.SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/allbotsupdated")
-        self.SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/allbotsupdated")
+        self.SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/who_0003")
+        self.SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/who_0003")
 
         # ⚙️ Features
         self.AUTO_LEAVE: bool = getenv("AUTO_LEAVE", "False").lower() == "true"
