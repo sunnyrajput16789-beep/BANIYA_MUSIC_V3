@@ -9,7 +9,8 @@ from pyrogram.types import Message
 from youtubesearchpython.aio import VideosSearch, Playlist
 
 import config
-from TPMusic.core.dir import DOWNLOAD_DIR
+from BANIYA_V3.core.dir import DOWNLOAD_DIR
+from BANIYA_V3.helpers import Media
 
 API_URL = getattr(config, "API_URL", None) or os.environ.get("SHRUTI_API_URL", "https://api.shrutibots.site")
 VIDEO_API_URL = getattr(config, "VIDEO_API_URL", None) or API_URL
@@ -141,6 +142,10 @@ class YouTubeAPI:
             link = self.base + link
         return bool(re.search(self.regex, link))
 
+    async def valid(self, link: str) -> bool:
+        """True if `link` is a YouTube URL (used to tell a YT link apart from a raw stream/m3u8 link)."""
+        return bool(link) and bool(re.search(self.regex, link))
+
     async def url(self, message_1: Message) -> Union[str, None]:
         messages = [message_1]
         if message_1.reply_to_message:
@@ -212,25 +217,58 @@ class YouTubeAPI:
         except Exception as e:
             return 0, f"Video download error: {e}"
 
-    async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.listbase + link
+    async def playlist(self, limit, user_id, link: str, video: bool = False) -> list:
+        """Resolve a YouTube playlist link into a list of Media objects (called as
+        yt.playlist(config.PLAYLIST_LIMIT, mention, url, video))."""
         if "&" in link:
             link = link.split("&")[0]
         try:
             plist = await Playlist.get(link)
         except Exception:
             return []
-        videos = plist.get("videos") or []
-        ids = []
-        for data in videos[:limit]:
+        videos = (plist.get("videos") or [])[: int(limit)]
+        tracks = []
+        for data in videos:
             if not data:
                 continue
-            vid = data.get("id")
-            if not vid:
+            vidid = data.get("id")
+            if not vidid:
                 continue
-            ids.append(vid)
-        return ids
+            duration_min = data.get("duration")
+            tracks.append(
+                Media(
+                    id=vidid,
+                    duration=duration_min or "0:00",
+                    duration_sec=int(time_to_seconds(duration_min)) if duration_min else 0,
+                    title=data.get("title"),
+                    url=data.get("link") or (self.base + vidid),
+                    user=user_id,
+                    video=video,
+                )
+            )
+        return tracks
+
+    async def search(self, query: str, message_id: int = 0, video: bool = False) -> Union["Media", None]:
+        """Resolve a search query or a YouTube link into a Media object (metadata only,
+        not downloaded yet). Called as yt.search(query_or_url, sent.id, video=video)."""
+        if not query:
+            return None
+        try:
+            track_details, vidid = await self.track(query)
+        except Exception:
+            return None
+        if not vidid:
+            return None
+        duration_min = track_details.get("duration_min")
+        return Media(
+            id=vidid,
+            duration=duration_min or "0:00",
+            duration_sec=int(time_to_seconds(duration_min)) if duration_min else 0,
+            title=track_details.get("title"),
+            url=track_details.get("link") or (self.base + vidid),
+            message_id=message_id,
+            video=video,
+        )
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -293,29 +331,23 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-    async def download(
-        self,
-        link: str,
-        mystic,
-        video: Union[bool, str] = None,
-        videoid: Union[bool, str] = None,
-        songaudio: Union[bool, str] = None,
-        songvideo: Union[bool, str] = None,
-        format_id: Union[bool, str] = None,
-        title: Union[bool, str] = None,
-    ) -> str:
-        if videoid:
-            link = self.base + link
+    async def download(self, videoid: str, video: bool = False) -> Union[str, None]:
+        """Download the track/video for a YouTube video id via the Shruti API and return
+        the local file path (or None on failure). Called as
+        yt.download(file.id, video=video)."""
+        if not videoid:
+            return None
         try:
             if video:
-                downloaded_file = await download_video(link)
-            else:
-                downloaded_file = await download_song(link)
-            if downloaded_file:
-                return downloaded_file, True
-            return None, False
+                return await download_video(videoid)
+            return await download_song(videoid)
         except Exception:
-            return None, False
+            return None
+
+    async def save_cookies(self, urls) -> None:
+        """No-op: downloads go through the Shruti API, so YouTube cookies aren't needed.
+        Kept so `if config.COOKIES_URL: await yt.save_cookies(...)` in __main__.py doesn't crash."""
+        return None
 
 
 YouTube = YouTubeAPI()
