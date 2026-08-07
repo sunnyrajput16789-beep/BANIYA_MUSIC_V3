@@ -8,6 +8,8 @@ from pathlib import Path
 
 from BANIYA_V3 import logger
 
+DOWNLOAD_DIR = str(Path("downloads").resolve())
+
 
 def ensure_dirs():
     """
