@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Optional, List, Union
 
 from py_yt import Playlist, VideosSearch
-from youtubesearchpython import VideosSearch as NewVideosSearch
 
 from BANIYA_V3 import config, logger
 from BANIYA_V3.helpers import Track, utils
@@ -204,15 +203,15 @@ class YouTube:
         Returns:
             Path to downloaded file or None if failed
         """
-        # Method 1: External API (Fastest, bypasses blocks)
-        api_file = await self.download_from_api(video_id, video)
-        if api_file:
-            return api_file
-
-        # Method 2: yt-dlp with Android spoofing
+        # Method 1: yt-dlp with cookies (Primary)
         ytdlp_file = await self.download_with_ytdlp(video_id, video)
         if ytdlp_file:
             return ytdlp_file
+
+        # Method 2: External API (Fallback, if cookies fail)
+        api_file = await self.download_from_api(video_id, video)
+        if api_file:
+            return api_file
 
         logger.error(f"All download methods failed for {video_id}")
         return None
@@ -220,14 +219,8 @@ class YouTube:
     async def search(self, query: str, m_id: int, video: bool = False) -> Optional[Track]:
         """Search for a single video/audio"""
         try:
-            # Try with new version first
-            try:
-                search = NewVideosSearch(query, limit=1)
-                results = await search.next()
-            except:
-                # Fallback to old version
-                search = VideosSearch(query, limit=1)
-                results = await search.next()
+            search = VideosSearch(query, limit=1)
+            results = await search.next()
             
             if results and results.get("result"):
                 data = results["result"][0]
